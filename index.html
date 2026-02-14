@@ -1,0 +1,967 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChordMaker</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #e0e0e0;
+            overflow-x: hidden;
+            overflow-y: auto;
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #6c5ce7;
+            font-size: 2.5em;
+            text-shadow: 0 0 20px rgba(108, 92, 231, 0.5);
+        }
+
+        /* Transport Controls */
+        .transport {
+            background: rgba(30, 30, 50, 0.8);
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            flex-wrap: wrap;
+            border: 2px solid #6c5ce7;
+        }
+
+        .transport-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            background: #6c5ce7;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.2s;
+            box-shadow: 0 4px 15px rgba(108, 92, 231, 0.3);
+        }
+
+        .btn-secondary {
+            background: rgba(108, 92, 231, 0.3);
+            box-shadow: 0 2px 8px rgba(108, 92, 231, 0.2);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(108, 92, 231, 0.5);
+        }
+
+        .btn:hover {
+            background: #5f4fd1;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(108, 92, 231, 0.5);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn.playing {
+            background: #00b894;
+        }
+
+        .btn.playing:hover {
+            background: #00a383;
+        }
+
+        .btn:disabled {
+            background: #555;
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .control-group label {
+            font-weight: 600;
+            color: #6c5ce7;
+            font-size: 14px;
+            white-space: nowrap;
+        }
+
+        .control-group select,
+        .control-group input[type="number"] {
+            background: rgba(30, 30, 50, 0.8);
+            color: #e0e0e0;
+            border: 2px solid #6c5ce7;
+            border-radius: 8px;
+            padding: 10px 15px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            outline: none;
+            transition: all 0.2s;
+        }
+
+        .control-group select:hover,
+        .control-group input[type="number"]:hover {
+            border-color: #a29bfe;
+            background: rgba(30, 30, 50, 1);
+        }
+
+        .control-group select:focus,
+        .control-group input[type="number"]:focus {
+            border-color: #a29bfe;
+            box-shadow: 0 0 10px rgba(108, 92, 231, 0.5);
+        }
+
+        .bpm-control {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .bpm-control input[type="range"] {
+            flex: 1;
+            height: 6px;
+            border-radius: 3px;
+            background: linear-gradient(to right, #6c5ce7 0%, #6c5ce7 50%, #444 50%, #444 100%);
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .bpm-control input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #6c5ce7;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(108, 92, 231, 0.8);
+        }
+
+        .bpm-value {
+            font-size: 20px;
+            font-weight: bold;
+            color: #6c5ce7;
+            min-width: 60px;
+            text-align: center;
+        }
+
+        /* Main Content Layout */
+        .main-content {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        /* Chord Palette */
+        .chord-palette {
+            background: rgba(30, 30, 50, 0.8);
+            padding: 20px;
+            border-radius: 12px;
+            border: 2px solid #6c5ce7;
+            min-width: 300px;
+            flex: 0 0 300px;
+        }
+
+        .chord-palette h2 {
+            color: #6c5ce7;
+            font-size: 1.3em;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .chord-category {
+            margin-bottom: 20px;
+        }
+
+        .chord-category h3 {
+            color: #a29bfe;
+            font-size: 0.9em;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .chord-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+        }
+
+        .chord-btn {
+            background: rgba(108, 92, 231, 0.2);
+            border: 2px solid rgba(108, 92, 231, 0.4);
+            color: #e0e0e0;
+            padding: 12px 8px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.2s;
+            text-align: center;
+        }
+
+        .chord-btn:hover {
+            background: rgba(108, 92, 231, 0.4);
+            border-color: #6c5ce7;
+            transform: scale(1.05);
+        }
+
+        .chord-btn.selected {
+            background: #6c5ce7;
+            border-color: #6c5ce7;
+            color: white;
+            box-shadow: 0 0 15px rgba(108, 92, 231, 0.6);
+        }
+
+        .chord-btn.major { border-left: 3px solid #00b894; }
+        .chord-btn.minor { border-left: 3px solid #e17055; }
+        .chord-btn.dim { border-left: 3px solid #fdcb6e; }
+        .chord-btn.aug { border-left: 3px solid #74b9ff; }
+        .chord-btn.seven { border-left: 3px solid #fd79a8; }
+
+        /* Progression Timeline */
+        .progression-section {
+            flex: 1;
+            min-width: 500px;
+        }
+
+        .progression-container {
+            background: rgba(30, 30, 50, 0.8);
+            padding: 20px;
+            border-radius: 12px;
+            border: 2px solid #6c5ce7;
+        }
+
+        .progression-container h2 {
+            color: #6c5ce7;
+            font-size: 1.3em;
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .bar-count-control {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 14px;
+        }
+
+        .bar-count-control input {
+            width: 60px;
+            background: rgba(30, 30, 50, 0.8);
+            color: #e0e0e0;
+            border: 2px solid rgba(108, 92, 231, 0.5);
+            border-radius: 6px;
+            padding: 5px 10px;
+            font-size: 14px;
+            text-align: center;
+        }
+
+        .progression-timeline {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .bar-slot {
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px dashed rgba(108, 92, 231, 0.4);
+            border-radius: 12px;
+            padding: 15px;
+            min-height: 120px;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .bar-slot:hover {
+            border-color: #6c5ce7;
+            background: rgba(108, 92, 231, 0.1);
+        }
+
+        .bar-slot.has-chord {
+            border-style: solid;
+            border-color: rgba(108, 92, 231, 0.6);
+            background: rgba(108, 92, 231, 0.15);
+        }
+
+        .bar-slot.selected {
+            border-color: #a29bfe;
+            box-shadow: 0 0 20px rgba(108, 92, 231, 0.5);
+        }
+
+        .bar-slot.playing {
+            border-color: #00b894;
+            box-shadow: 0 0 25px rgba(0, 184, 148, 0.6);
+            animation: pulse-bar 0.5s ease-in-out;
+        }
+
+        @keyframes pulse-bar {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+        }
+
+        .bar-number {
+            position: absolute;
+            top: 5px;
+            left: 8px;
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.4);
+            font-weight: 600;
+        }
+
+        .bar-chord {
+            text-align: center;
+            padding-top: 10px;
+        }
+
+        .bar-chord-name {
+            font-size: 28px;
+            font-weight: 700;
+            color: #6c5ce7;
+            margin-bottom: 5px;
+        }
+
+        .bar-chord-type {
+            font-size: 14px;
+            color: #a29bfe;
+            margin-bottom: 8px;
+        }
+
+        .bar-inversion {
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        .bar-empty {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: rgba(255, 255, 255, 0.3);
+            font-size: 24px;
+        }
+
+        .bar-controls {
+            position: absolute;
+            bottom: 5px;
+            right: 5px;
+            display: flex;
+            gap: 5px;
+        }
+
+        .bar-control-btn {
+            background: rgba(108, 92, 231, 0.3);
+            border: none;
+            color: rgba(255, 255, 255, 0.7);
+            width: 24px;
+            height: 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+        }
+
+        .bar-control-btn:hover {
+            background: #6c5ce7;
+            color: white;
+        }
+
+        /* Chord Type Selector */
+        .chord-type-selector {
+            background: rgba(30, 30, 50, 0.6);
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+        }
+
+        .chord-type-selector h4 {
+            color: #a29bfe;
+            font-size: 12px;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+        }
+
+        .type-buttons {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .type-btn {
+            background: rgba(108, 92, 231, 0.2);
+            border: 2px solid rgba(108, 92, 231, 0.3);
+            color: #e0e0e0;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .type-btn:hover {
+            background: rgba(108, 92, 231, 0.4);
+            border-color: #6c5ce7;
+        }
+
+        .type-btn.active {
+            background: #6c5ce7;
+            border-color: #6c5ce7;
+            color: white;
+        }
+
+        /* Inversion Control */
+        .inversion-control {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 15px;
+            padding: 10px;
+            background: rgba(30, 30, 50, 0.6);
+            border-radius: 8px;
+        }
+
+        .inversion-control label {
+            color: #a29bfe;
+            font-size: 12px;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
+        .inversion-buttons {
+            display: flex;
+            gap: 5px;
+        }
+
+        .inversion-btn {
+            background: rgba(108, 92, 231, 0.2);
+            border: 2px solid rgba(108, 92, 231, 0.3);
+            color: #e0e0e0;
+            width: 40px;
+            height: 32px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .inversion-btn:hover {
+            background: rgba(108, 92, 231, 0.4);
+            border-color: #6c5ce7;
+        }
+
+        .inversion-btn.active {
+            background: #6c5ce7;
+            border-color: #6c5ce7;
+            color: white;
+        }
+
+        /* Presets */
+        .presets-section {
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(30, 30, 50, 0.6);
+            border-radius: 8px;
+        }
+
+        .presets-section h4 {
+            color: #a29bfe;
+            font-size: 12px;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+        }
+
+        .preset-buttons {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .preset-btn {
+            background: rgba(108, 92, 231, 0.15);
+            border: 2px solid rgba(108, 92, 231, 0.3);
+            color: #e0e0e0;
+            padding: 8px 14px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .preset-btn:hover {
+            background: rgba(108, 92, 231, 0.3);
+            border-color: #6c5ce7;
+        }
+
+        /* Info panel */
+        .info {
+            background: rgba(30, 30, 50, 0.6);
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            text-align: center;
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 14px;
+        }
+
+        .info strong {
+            color: #6c5ce7;
+        }
+
+        /* Export Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        .modal.show {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            border: 2px solid #6c5ce7;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 500px;
+            animation: slideIn 0.3s ease-out;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 25px;
+            border-bottom: 2px solid rgba(108, 92, 231, 0.3);
+        }
+
+        .modal-header h2 {
+            margin: 0;
+            color: #6c5ce7;
+            font-size: 1.5em;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: #e0e0e0;
+            font-size: 28px;
+            cursor: pointer;
+            padding: 0;
+            width: 30px;
+            height: 30px;
+            line-height: 30px;
+            text-align: center;
+            transition: all 0.2s;
+        }
+
+        .modal-close:hover {
+            color: #6c5ce7;
+            transform: scale(1.2);
+        }
+
+        .modal-body {
+            padding: 25px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            color: #6c5ce7;
+            font-weight: 600;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .form-input,
+        .form-select {
+            width: 100%;
+            padding: 12px 15px;
+            background: rgba(30, 30, 50, 0.6);
+            border: 2px solid rgba(108, 92, 231, 0.3);
+            border-radius: 8px;
+            color: #e0e0e0;
+            font-size: 16px;
+            outline: none;
+            transition: all 0.2s;
+        }
+
+        .form-input:focus,
+        .form-select:focus {
+            border-color: #6c5ce7;
+            box-shadow: 0 0 10px rgba(108, 92, 231, 0.3);
+        }
+
+        .loop-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .loop-btn {
+            flex: 1;
+            padding: 10px;
+            background: rgba(30, 30, 50, 0.6);
+            border: 2px solid rgba(108, 92, 231, 0.3);
+            border-radius: 6px;
+            color: rgba(255, 255, 255, 0.7);
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .loop-btn:hover {
+            border-color: #6c5ce7;
+            color: #e0e0e0;
+        }
+
+        .loop-btn.active {
+            background: #6c5ce7;
+            border-color: #6c5ce7;
+            color: white;
+        }
+
+        .duration-info {
+            display: block;
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 12px;
+            margin-top: 5px;
+        }
+
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            padding: 20px 25px;
+            border-top: 2px solid rgba(108, 92, 231, 0.3);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateY(-50px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        /* Toast Animations */
+        @keyframes slideInRight {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideOutRight {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 900px) {
+            .main-content {
+                flex-direction: column;
+            }
+
+            .chord-palette {
+                flex: 1 1 100%;
+                min-width: 100%;
+            }
+
+            .progression-section {
+                min-width: 100%;
+            }
+
+            .progression-timeline {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 480px) {
+            body {
+                padding: 10px;
+            }
+
+            h1 {
+                font-size: 1.8em;
+            }
+
+            .progression-timeline {
+                grid-template-columns: 1fr;
+            }
+
+            .chord-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>ChordMaker</h1>
+
+        <!-- Transport Controls -->
+        <div class="transport">
+            <div class="transport-buttons">
+                <button id="undoBtn" onclick="undo()" class="btn btn-secondary" disabled>Undo</button>
+                <button id="redoBtn" onclick="redo()" class="btn btn-secondary" disabled>Redo</button>
+                <button id="playBtn" class="btn" onclick="togglePlay()">&#9654; Play</button>
+            </div>
+
+            <div class="control-group">
+                <label for="keySelect">Key:</label>
+                <select id="keySelect" onchange="updateKey()">
+                    <option value="C">C</option>
+                    <option value="C#">C#/Db</option>
+                    <option value="D">D</option>
+                    <option value="D#">D#/Eb</option>
+                    <option value="E">E</option>
+                    <option value="F">F</option>
+                    <option value="F#">F#/Gb</option>
+                    <option value="G">G</option>
+                    <option value="G#">G#/Ab</option>
+                    <option value="A">A</option>
+                    <option value="A#">A#/Bb</option>
+                    <option value="B">B</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label for="modeSelect">Mode:</label>
+                <select id="modeSelect" onchange="updateMode()">
+                    <option value="Major">Major</option>
+                    <option value="Minor">Minor</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label for="instrumentSelect">Instrument:</label>
+                <select id="instrumentSelect" onchange="updateInstrument()">
+                    <option value="Piano">Piano</option>
+                    <option value="Guitar">Guitar</option>
+                    <option value="Synth">Synth Pad</option>
+                    <option value="Organ">Organ</option>
+                    <option value="Strings">Strings</option>
+                </select>
+            </div>
+
+            <div class="bpm-control">
+                <label for="bpmSlider">BPM:</label>
+                <input type="range" id="bpmSlider" min="40" max="200" value="100" step="1" oninput="updateBpm()">
+                <div class="bpm-value" id="bpmValue">100</div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Chord Palette -->
+            <div class="chord-palette">
+                <h2>Chord Palette</h2>
+
+                <div class="chord-category">
+                    <h3>Major Chords</h3>
+                    <div class="chord-grid" id="majorChords"></div>
+                </div>
+
+                <div class="chord-category">
+                    <h3>Minor Chords</h3>
+                    <div class="chord-grid" id="minorChords"></div>
+                </div>
+
+                <div class="chord-category">
+                    <h3>7th Chords</h3>
+                    <div class="chord-grid" id="seventhChords"></div>
+                </div>
+
+                <div class="chord-category">
+                    <h3>Other</h3>
+                    <div class="chord-grid" id="otherChords"></div>
+                </div>
+
+                <!-- Chord Type Selector -->
+                <div class="chord-type-selector">
+                    <h4>Selected Chord Type</h4>
+                    <div class="type-buttons">
+                        <button class="type-btn active" data-type="maj" onclick="setChordType('maj')">Major</button>
+                        <button class="type-btn" data-type="min" onclick="setChordType('min')">Minor</button>
+                        <button class="type-btn" data-type="7" onclick="setChordType('7')">7th</button>
+                        <button class="type-btn" data-type="maj7" onclick="setChordType('maj7')">Maj7</button>
+                        <button class="type-btn" data-type="min7" onclick="setChordType('min7')">Min7</button>
+                        <button class="type-btn" data-type="dim" onclick="setChordType('dim')">Dim</button>
+                        <button class="type-btn" data-type="aug" onclick="setChordType('aug')">Aug</button>
+                        <button class="type-btn" data-type="sus2" onclick="setChordType('sus2')">Sus2</button>
+                        <button class="type-btn" data-type="sus4" onclick="setChordType('sus4')">Sus4</button>
+                    </div>
+                </div>
+
+                <!-- Inversion Control -->
+                <div class="inversion-control">
+                    <label>Inversion:</label>
+                    <div class="inversion-buttons">
+                        <button class="inversion-btn active" data-inv="0" onclick="setInversion(0)">Root</button>
+                        <button class="inversion-btn" data-inv="1" onclick="setInversion(1)">1st</button>
+                        <button class="inversion-btn" data-inv="2" onclick="setInversion(2)">2nd</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Progression Timeline -->
+            <div class="progression-section">
+                <div class="progression-container">
+                    <h2>
+                        Chord Progression
+                        <div class="bar-count-control">
+                            <label>Bars:</label>
+                            <input type="number" id="barCount" min="4" max="32" value="8" onchange="updateBarCount()">
+                        </div>
+                    </h2>
+
+                    <div class="progression-timeline" id="progressionTimeline">
+                        <!-- Bar slots will be generated by JavaScript -->
+                    </div>
+
+                    <!-- Presets -->
+                    <div class="presets-section">
+                        <h4>Common Progressions</h4>
+                        <div class="preset-buttons">
+                            <button class="preset-btn" onclick="loadPreset('I-V-vi-IV')">I-V-vi-IV (Pop)</button>
+                            <button class="preset-btn" onclick="loadPreset('I-IV-V-I')">I-IV-V-I (Classic)</button>
+                            <button class="preset-btn" onclick="loadPreset('ii-V-I')">ii-V-I (Jazz)</button>
+                            <button class="preset-btn" onclick="loadPreset('I-vi-IV-V')">I-vi-IV-V (50s)</button>
+                            <button class="preset-btn" onclick="loadPreset('vi-IV-I-V')">vi-IV-I-V (Axis)</button>
+                            <button class="preset-btn" onclick="loadPreset('I-IV-vi-V')">I-IV-vi-V (Anthemic)</button>
+                            <button class="preset-btn" onclick="loadPreset('i-VI-III-VII')">i-VI-III-VII (Epic)</button>
+                            <button class="preset-btn" onclick="loadPreset('12-bar-blues')">12-Bar Blues</button>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; gap: 10px; margin-top: 15px; justify-content: center;">
+                        <button class="btn" onclick="exportProgression()">Export Audio</button>
+                        <button class="btn btn-secondary" onclick="clearProgression()">Clear All</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="info">
+            <strong>Click a chord from the palette, then click a bar to place it!</strong> Use inversions to create smoother voice leading.<br>
+            <small>Tip: The I-V-vi-IV progression is used in hundreds of pop songs! Try it in different keys.</small>
+        </div>
+    </div>
+
+    <!-- Export Modal -->
+    <div id="exportModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Export Progression</h2>
+                <button class="modal-close" onclick="closeExportModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="exportFilename">Filename:</label>
+                    <input type="text" id="exportFilename" class="form-input" placeholder="MyProgression">
+                </div>
+                <div class="form-group">
+                    <label for="exportFormat">Audio Format:</label>
+                    <select id="exportFormat" class="form-select">
+                        <option value="wav">WAV - Uncompressed (Best Quality)</option>
+                        <option value="mp3">MP3 - Compressed (Small File)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Loop Count:</label>
+                    <div class="loop-controls">
+                        <button class="loop-btn" onclick="setLoopCount(1)">1x</button>
+                        <button class="loop-btn active" onclick="setLoopCount(2)">2x</button>
+                        <button class="loop-btn" onclick="setLoopCount(4)">4x</button>
+                    </div>
+                    <small id="durationDisplay" class="duration-info">Duration: 0s</small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeExportModal()">Cancel</button>
+                <button class="btn" onclick="confirmExport()">Export</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- External Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/lamejs@1.2.1/lame.min.js"></script>
+
+    <!-- ChordMaker JavaScript Modules -->
+    <script src="js/config.js"></script>
+    <script src="js/state.js"></script>
+    <script src="js/chord-library.js"></script>
+    <script src="js/audio-engine.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/presets.js"></script>
+    <script src="js/undo-redo.js"></script>
+    <script src="js/export.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>
