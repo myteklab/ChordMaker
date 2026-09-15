@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ChordMaker Preview</title>
+<meta name="robots" content="noindex, nofollow">
+<style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html, body {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+        color: #e0e0e0;
+        user-select: none;
+        -webkit-user-select: none;
+    }
+
+    #app { display: flex; flex-direction: column; height: 100%; }
+
+    #bar {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        height: 52px;
+        padding: 0 14px;
+        flex-shrink: 0;
+        background: rgba(30, 30, 50, 0.8);
+        border-bottom: 2px solid rgba(108, 92, 231, 0.5);
+    }
+
+    #play {
+        width: 36px;
+        height: 36px;
+        flex-shrink: 0;
+        border: none;
+        border-radius: 50%;
+        background: #6c5ce7;
+        color: #fff;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 4px 15px rgba(108, 92, 231, 0.3);
+    }
+    #play:hover { background: #5f4fd1; }
+    #play.playing { background: #00b894; }
+    #play:disabled { background: #555; cursor: default; box-shadow: none; }
+    #play svg { width: 14px; height: 14px; fill: currentColor; }
+
+    #meta { min-width: 0; line-height: 1.3; }
+    #key {
+        font-size: 15px;
+        font-weight: 700;
+        color: #a29bfe;
+        white-space: nowrap;
+    }
+    #details {
+        font-size: 12px;
+        color: #b9c0d0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    #position {
+        margin-left: auto;
+        font-size: 12px;
+        font-weight: 600;
+        color: rgba(255, 255, 255, 0.5);
+        white-space: nowrap;
+        flex-shrink: 0;
+    }
+
+    #stage { flex: 1; min-height: 0; padding: 12px; position: relative; }
+
+    /* Column count and card height are set by fit(), so the whole progression
+       is always on screen whatever size the host frame is. */
+    #grid {
+        display: grid;
+        gap: var(--gap, 10px);
+        grid-template-columns: repeat(var(--cols, 4), 1fr);
+        grid-auto-rows: var(--card-h, 120px);
+        align-content: center;
+        height: 100%;
+    }
+
+    .card {
+        position: relative;
+        border-radius: 12px;
+        border: 2px solid rgba(108, 92, 231, 0.6);
+        background: rgba(108, 92, 231, 0.15);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: calc(var(--card-w, 150px) * 0.03);
+        cursor: pointer;
+        overflow: hidden;
+        transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+    }
+    .card:hover { border-color: #a29bfe; }
+    .card::before {
+        content: '';
+        position: absolute;
+        left: 0; top: 0; bottom: 0;
+        width: 4px;
+        background: var(--accent, #6c5ce7);
+    }
+    .card.rest {
+        border-style: dashed;
+        border-color: rgba(108, 92, 231, 0.35);
+        background: rgba(255, 255, 255, 0.03);
+        cursor: default;
+    }
+    .card.rest::before { display: none; }
+    .card.playing {
+        border-color: #00b894;
+        border-style: solid;
+        box-shadow: 0 0 22px rgba(0, 184, 148, 0.55);
+        background: rgba(0, 184, 148, 0.12);
+    }
+
+    .num, .numeral {
+        position: absolute;
+        top: 5px;
+        font-size: 11px;
+        font-weight: 600;
+    }
+    .num { left: 10px; color: rgba(255, 255, 255, 0.4); }
+    .numeral { right: 8px; color: #a29bfe; }
+
+    /* fit() sets each name's size from its own length, so "A#sus2" and "C"
+       both fill a narrow card without either spilling out of it. */
+    .name {
+        font-weight: 700;
+        color: #fff;
+        line-height: 1;
+        white-space: nowrap;
+    }
+    .type {
+        font-size: clamp(10px, calc(var(--card-w, 150px) * 0.085), 15px);
+        color: #a29bfe;
+    }
+    .rest-label { font-size: 13px; color: rgba(255, 255, 255, 0.3); }
+
+    .keys { width: 72%; max-width: 150px; display: block; }
+    .keys .w { fill: #e8e6f5; stroke: #1a1a2e; stroke-width: 0.6; }
+    .keys .b { fill: #2a2a40; }
+    .keys .on { fill: #a29bfe; }
+    .keys .root { fill: #6c5ce7; }
+    .card.playing .keys .on { fill: #55efc4; }
+    .card.playing .keys .root { fill: #00b894; }
+
+    /* Small cards drop the detail rather than squeezing it illegible. */
+    #grid.compact .keys, #grid.compact .numeral { display: none; }
+    #grid.tiny .type, #grid.tiny .num { display: none; }
+    #grid.narrow .card::before { display: none; }
+    #grid.narrow .card { border-radius: 6px; }
+
+    #message {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+        color: rgba(255, 255, 255, 0.6);
+        pointer-events: none;
+        text-align: center;
+        padding: 16px;
+    }
+    [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<div id="app">
+    <div id="bar">
+        <button id="play" type="button" aria-label="Play progression" disabled></button>
+        <div id="meta">
+            <div id="key">Loading...</div>
+            <div id="details"></div>
+        </div>
+        <div id="position"></div>
+    </div>
+    <div id="stage">
+        <div id="grid"></div>
+        <div id="message" hidden></div>
+    </div>
+</div>
+
+<!-- The app's own chord tables and instruments, loaded rather than copied, so a
+     chord sounds the same here as it did in the editor. audio-engine.js reads
+     these globals, which state.js would normally declare. -->
+<script>
+var audioContext = null;
+var currentInstrument = 'Piano';
+var bpm = 100;
+var beatsPerBar = 4;
+var bars = 8;
+</script>
+<script src="js/config.js"></script>
+<script src="js/chord-library.js"></script>
+<script src="js/audio-engine.js"></script>
+<script>
+'use strict';
+
+var INSTRUMENTS = ['Piano', 'Guitar', 'Synth', 'Organ', 'Strings'];
+var INSTRUMENT_LABELS = { Synth: 'Synth Pad' };
+// Same families the palette marks with a colored edge; sus chords have no edge
+// there and get the app's purple here.
+var TYPE_ACCENTS = {
+    maj: '#00b894', maj7: '#00b894', '6': '#00b894', add9: '#00b894',
+    min: '#e17055', min7: '#e17055', min6: '#e17055',
+    dim: '#fdcb6e', dim7: '#fdcb6e',
+    aug: '#74b9ff',
+    '7': '#fd79a8'
+};
+
+var chords = [];     // one entry per bar: { root, type, inversion } or null for a rest
+var keyName = 'C';
+var modeName = 'Major';
+var cardEls = [];
+
+var playing = false;
+var timer = null;
+var nextBarTime = 0;
+var nextBar = 0;
+var shownBar = -1;
+var SCHEDULE_AHEAD = 0.15;
+var TICK = 25;
+
+// ── Host protocol ────────────────────────────────────────────────────
+var reelStarted = false;
+window.addEventListener('message', function (e) {
+    if (e.source !== window.parent) return;
+    var msg = e.data || {};
+    if (msg.type === 'LOAD_PREVIEW') load(msg.data);
+    // Shuffle asks a card to start itself, only from a surface that already
+    // holds the viewer's gesture. The flag keeps a repeat from toggling it off.
+    if (msg.type === 'REEL_MODE' && msg.mode === 'audio' && !reelStarted) {
+        reelStarted = true;
+        if (!playing) start(0);
+    }
+});
+window.parent.postMessage({ type: 'PREVIEW_READY' }, '*');
+
+function load(data) {
+    if (typeof data === 'string') {
+        try { data = JSON.parse(data); } catch (e) { data = null; }
+    }
+    if (!data || !Array.isArray(data.progression) || !data.progression.length) {
+        showMessage('This project has no chord progression.');
+        return;
+    }
+
+    chords = data.progression.map(readChord);
+    keyName = NOTE_FREQUENCIES[data.key] ? data.key : 'C';
+    modeName = data.mode === 'Minor' ? 'Minor' : 'Major';
+    bpm = clampNum(data.bpm, 20, 400, DEFAULT_BPM);
+    beatsPerBar = clampNum(data.beatsPerBar, 1, 16, BEATS_PER_BAR);
+    bars = chords.length;
+    currentInstrument = INSTRUMENTS.indexOf(data.instrument) !== -1 ? data.instrument : 'Piano';
+
+    var filled = chords.filter(Boolean).length;
+    document.getElementById('key').textContent = keyName + ' ' + modeName;
+    document.getElementById('details').textContent = [
+        bpm + ' BPM',
+        INSTRUMENT_LABELS[currentInstrument] || currentInstrument,
+        bars + (bars === 1 ? ' bar' : ' bars')
+    ].join(' · ');
+
+    buildGrid();
+    fit();
+
+    if (filled === 0) {
+        showMessage('No chords placed yet.');
+    } else {
+        document.getElementById('play').disabled = false;
+    }
+    setPlayIcon(false);
+    updatePosition();
+    window.parent.postMessage({ type: 'PREVIEW_LOADED' }, '*');
+}
+
+// A bar the editor would play: a known root and a type. The editor plays any
+// type string through CHORD_INTERVALS' major fallback, and so does this.
+function readChord(entry) {
+    if (!entry || !entry.chord || !entry.type || !NOTE_FREQUENCIES[entry.chord]) return null;
+    var size = (CHORD_INTERVALS[entry.type] || CHORD_INTERVALS.maj).length;
+    var inv = Math.floor(Number(entry.inversion) || 0);
+    return {
+        root: entry.chord,
+        type: String(entry.type),
+        inversion: Math.max(0, Math.min(size - 1, inv))
+    };
+}
+
+function showMessage(text) {
+    var m = document.getElementById('message');
+    m.textContent = text;
+    m.hidden = false;
+    if (!chords.length) {
+        document.getElementById('key').textContent = '';
+        window.parent.postMessage({ type: 'PREVIEW_LOADED' }, '*');
+    }
+}
+
+function clampNum(v, lo, hi, dflt) {
+    var n = Number(v);
+    if (!isFinite(n) || n <= 0) return dflt;
+    return Math.min(hi, Math.max(lo, n));
+}
+
+// ── Cards ────────────────────────────────────────────────────────────
+function buildGrid() {
+    var grid = document.getElementById('grid');
+    grid.innerHTML = '';
+    cardEls = chords.map(function (c, i) {
+        var card = document.createElement('div');
+        card.className = 'card' + (c ? '' : ' rest');
+
+        var num = document.createElement('div');
+        num.className = 'num';
+        num.textContent = i + 1;
+        card.appendChild(num);
+
+        if (!c) {
+            var rest = document.createElement('div');
+            rest.className = 'rest-label';
+            rest.textContent = 'rest';
+            card.appendChild(rest);
+            grid.appendChild(card);
+            return card;
+        }
+
+        card.style.setProperty('--accent', TYPE_ACCENTS[c.type] || '#6c5ce7');
+        card.title = 'Play ' + getChordDisplayName(c.root, c.type);
+
+        var numeral = getChordNumeral(c.root, c.type, keyName, modeName);
+        if (numeral) {
+            var n = document.createElement('div');
+            n.className = 'numeral';
+            n.textContent = numeral;
+            card.appendChild(n);
+        }
+
+        var name = document.createElement('div');
+        name.className = 'name';
+        name.textContent = getChordDisplayName(c.root, c.type);
+        card.appendChild(name);
+
+        var type = document.createElement('div');
+        type.className = 'type';
+        type.textContent = (CHORD_TYPE_NAMES[c.type] || c.type) +
+            (c.inversion > 0 ? ' · ' + INVERSION_NAMES[c.inversion] : '');
+        card.appendChild(type);
+
+        card.appendChild(keyboard(getChordNotes(c.root, c.type, c.inversion), c.root));
+        card.addEventListener('click', function () { onCardClick(i); });
+        grid.appendChild(card);
+        return card;
+    });
+}
+
+// One octave, C to B, with the chord's notes lit and its root darker.
+var WHITE = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
+var BLACK = [['C#', 1], ['D#', 2], ['F#', 4], ['G#', 5], ['A#', 6]];
+function keyboard(notes, root) {
+    var ns = 'http://www.w3.org/2000/svg';
+    var svg = document.createElementNS(ns, 'svg');
+    svg.setAttribute('viewBox', '0 0 70 26');
+    svg.setAttribute('class', 'keys');
+    svg.setAttribute('aria-hidden', 'true');
+    function cls(base, note) {
+        if (note === root) return base + ' root';
+        return notes.indexOf(note) !== -1 ? base + ' on' : base;
+    }
+    WHITE.forEach(function (note, i) {
+        var r = document.createElementNS(ns, 'rect');
+        r.setAttribute('x', i * 10); r.setAttribute('y', 0);
+        r.setAttribute('width', 10); r.setAttribute('height', 26);
+        r.setAttribute('rx', 1.5);
+        r.setAttribute('class', cls('w', note));
+        svg.appendChild(r);
+    });
+    BLACK.forEach(function (pair) {
+        var r = document.createElementNS(ns, 'rect');
+        r.setAttribute('x', pair[1] * 10 - 3); r.setAttribute('y', 0);
+        r.setAttribute('width', 6); r.setAttribute('height', 16);
+        r.setAttribute('rx', 1);
+        r.setAttribute('class', cls('b', pair[0]));
+        svg.appendChild(r);
+    });
+    return svg;
+}
+
+// Pick the column count that gives the biggest card. Only phrase lengths are
+// tried (1, 2, 4, 8...), the way the editor lays bars out four to a row: the
+// biggest cards for 8 bars are 3 x 3, but that splits the progression 3+3+2.
+function fit() {
+    if (!chords.length) return;
+    var stage = document.getElementById('stage');
+    var grid = document.getElementById('grid');
+    var W = stage.clientWidth - 24;
+    var H = stage.clientHeight - 24;
+    var gap = W < 500 ? 6 : 10;
+    var n = chords.length;
+    var best = null;
+    var options = [1, 2, 4, 8, 16, 32].filter(function (c) { return c < n; }).concat(n);
+
+    for (var k = 0; k < options.length; k++) {
+        var cols = options[k];
+        var rows = Math.ceil(n / cols);
+        var w = (W - gap * (cols - 1)) / cols;
+        var h = (H - gap * (rows - 1)) / rows;
+        if (w <= 0 || h <= 0) continue;
+        // Cards read best a little wider than tall; score by the side that limits.
+        var score = Math.min(w, h * 1.3);
+        if (!best || score > best.score) best = { score: score, cols: cols, w: w, h: Math.min(h, w * 1.1) };
+    }
+    if (!best) return;
+
+    var root = document.documentElement.style;
+    root.setProperty('--cols', best.cols);
+    root.setProperty('--card-w', Math.floor(best.w) + 'px');
+    root.setProperty('--card-h', Math.floor(best.h) + 'px');
+    root.setProperty('--gap', gap + 'px');
+    grid.classList.toggle('compact', best.h < 110 || best.w < 90);
+    var tiny = best.h < 64 || best.w < 60;
+    grid.classList.toggle('tiny', tiny);
+    // Short but wide cards still have room for the chord-family edge.
+    grid.classList.toggle('narrow', best.w < 60);
+
+    // Bold sans glyphs average about 0.62em wide; leave room for the border.
+    var inner = best.w - (tiny ? 8 : 20);
+    grid.querySelectorAll('.name').forEach(function (el) {
+        var px = Math.min(40, best.w * 0.2, best.h * (tiny ? 0.5 : 0.3), inner / (el.textContent.length * 0.62));
+        el.style.fontSize = Math.max(8, Math.floor(px)) + 'px';
+    });
+}
+window.addEventListener('resize', fit);
+
+// ── Playback ─────────────────────────────────────────────────────────
+document.getElementById('play').addEventListener('click', function () {
+    if (playing) stop(); else start(shownBar >= 0 ? shownBar : 0);
+});
+
+document.addEventListener('keydown', function (e) {
+    if (e.code === 'Space' && !document.getElementById('play').disabled) {
+        e.preventDefault();
+        if (playing) stop(); else start(0);
+    }
+});
+
+function ensureAudio() {
+    if (!window.AudioContext && !window.webkitAudioContext) return false;
+    initAudio();
+    // This runs inside the click, which is the gesture that lets it start.
+    if (audioContext.state === 'suspended') audioContext.resume();
+    return true;
+}
+
+function barSeconds() {
+    return (60 / bpm) * beatsPerBar;
+}
+
+// Clicking a chord plays it. Mid-playback it moves the loop there instead.
+function onCardClick(i) {
+    if (!chords[i] || !ensureAudio()) return;
+    if (playing) {
+        stop();
+        start(i);
+        return;
+    }
+    var c = chords[i];
+    playChord(c.root, c.type, c.inversion, Math.min(barSeconds() * 0.9, 1.5), null, currentInstrument);
+    paintBar(i);
+    setTimeout(function () { if (!playing && shownBar === i) paintBar(-1); }, 700);
+}
+
+function start(fromBar) {
+    if (!chords.some(Boolean) || !ensureAudio()) return;
+    playing = true;
+    nextBar = fromBar % chords.length;
+    nextBarTime = audioContext.currentTime + 0.06;
+    setPlayIcon(true);
+    scheduler();
+}
+
+function stop() {
+    playing = false;
+    clearTimeout(timer);
+    paintBar(-1);
+    setPlayIcon(false);
+    updatePosition();
+}
+
+// The editor steps bars with setInterval, which drifts and stutters when the
+// tab is busy. Here audio is queued on the Web Audio clock and the timer only
+// decides when to queue more, the same look-ahead MelodyMaker's preview uses.
+// It loops, as the editor does.
+function scheduler() {
+    while (nextBarTime < audioContext.currentTime + SCHEDULE_AHEAD) {
+        scheduleBar(nextBar, nextBarTime);
+        nextBarTime += barSeconds();
+        nextBar = (nextBar + 1) % chords.length;
+    }
+    if (playing) timer = setTimeout(scheduler, TICK);
+}
+
+function scheduleBar(i, when) {
+    var c = chords[i];
+    if (c) {
+        try {
+            playChord(c.root, c.type, c.inversion, barSeconds() * 0.9, when, currentInstrument);
+        } catch (e) { /* one bad chord should not stop the loop */ }
+    }
+    var delay = Math.max(0, (when - audioContext.currentTime) * 1000);
+    setTimeout(function () { if (playing) paintBar(i); }, delay);
+}
+
+function paintBar(i) {
+    if (shownBar >= 0 && cardEls[shownBar]) cardEls[shownBar].classList.remove('playing');
+    if (i >= 0 && cardEls[i]) cardEls[i].classList.add('playing');
+    shownBar = i;
+    updatePosition();
+}
+
+function updatePosition() {
+    var el = document.getElementById('position');
+    el.textContent = playing && shownBar >= 0 ? 'Bar ' + (shownBar + 1) + ' of ' + chords.length : '';
+}
+
+function setPlayIcon(on) {
+    var btn = document.getElementById('play');
+    btn.innerHTML = on
+        ? '<svg viewBox="0 0 14 14"><rect x="2" y="2" width="10" height="10" rx="1"/></svg>'
+        : '<svg viewBox="0 0 14 14"><path d="M3 1.2v11.6L12.5 7z"/></svg>';
+    btn.classList.toggle('playing', on);
+    btn.setAttribute('aria-label', on ? 'Stop progression' : 'Play progression');
+}
+
+// A loop left running in a gallery card should not follow the viewer to another tab.
+document.addEventListener('visibilitychange', function () {
+    if (document.hidden && playing) stop();
+});
+</script>
+</body>
+</html>
