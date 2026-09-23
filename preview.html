@@ -26,7 +26,9 @@
         align-items: center;
         gap: 12px;
         height: 52px;
-        padding: 0 14px;
+        /* The gallery modal paints its close X over the frame's top right
+           corner, from outside this document, so leave that corner alone. */
+        padding: 0 56px 0 14px;
         flex-shrink: 0;
         background: rgba(30, 30, 50, 0.8);
         border-bottom: 2px solid rgba(108, 92, 231, 0.5);
