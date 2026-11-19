@@ -21,6 +21,7 @@ function getDegreeChord(degree, type) {
 const PROGRESSION_PRESETS = {
     'I-V-vi-IV': {
         name: 'I-V-vi-IV (Pop)',
+        minorName: 'i-v-VI-iv (Pop)',
         description: 'The most popular chord progression in modern music',
         getChords: (key, mode) => {
             if (mode === 'Major') {
@@ -42,6 +43,7 @@ const PROGRESSION_PRESETS = {
     },
     'I-IV-V-I': {
         name: 'I-IV-V-I (Classic)',
+        minorName: 'i-iv-v-i (Classic)',
         description: 'The foundational progression in Western music',
         getChords: (key, mode) => {
             if (mode === 'Major') {
@@ -63,6 +65,7 @@ const PROGRESSION_PRESETS = {
     },
     'ii-V-I': {
         name: 'ii-V-I (Jazz)',
+        minorName: 'ii°-V7-i (Jazz)',
         description: 'The essential jazz progression',
         getChords: (key, mode) => {
             if (mode === 'Major') {
@@ -84,6 +87,7 @@ const PROGRESSION_PRESETS = {
     },
     'I-vi-IV-V': {
         name: 'I-vi-IV-V (50s)',
+        minorName: 'i-VI-iv-v (50s)',
         description: 'The classic 1950s doo-wop progression',
         getChords: (key, mode) => {
             if (mode === 'Major') {
@@ -105,6 +109,7 @@ const PROGRESSION_PRESETS = {
     },
     'vi-IV-I-V': {
         name: 'vi-IV-I-V (Axis)',
+        minorName: 'VI-iv-i-v (Axis)',
         description: 'Starting on the relative minor for a different feel',
         getChords: (key, mode) => {
             if (mode === 'Major') {
@@ -126,6 +131,7 @@ const PROGRESSION_PRESETS = {
     },
     'I-IV-vi-V': {
         name: 'I-IV-vi-V (Anthemic)',
+        minorName: 'i-iv-VI-v (Anthemic)',
         description: 'Great for big choruses and anthemic songs',
         getChords: (key, mode) => {
             if (mode === 'Major') {
@@ -214,5 +220,19 @@ function loadPreset(presetName) {
 
     markDirty();
     buildProgressionTimeline();
-    showToast(`Loaded: ${preset.name}`);
+    showToast(`Loaded: ${presetLabel(preset)}`);
+}
+
+// In a minor key the presets play minor-key chords (I-V-vi-IV plays i-v-VI-iv), so the
+// buttons show the numerals for what they will play in the current mode.
+function presetLabel(preset) {
+    return currentMode === 'Minor' && preset.minorName ? preset.minorName : preset.name;
+}
+
+function updatePresetLabels() {
+    document.querySelectorAll('.preset-btn').forEach(btn => {
+        const m = /loadPreset\('([^']+)'\)/.exec(btn.getAttribute('onclick') || '');
+        const preset = m && PROGRESSION_PRESETS[m[1]];
+        if (preset) btn.textContent = presetLabel(preset);
+    });
 }

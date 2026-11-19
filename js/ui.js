@@ -57,6 +57,19 @@ function buildChordPalette() {
         const btn = createChordButton(note, type, typeClass);
         otherGrid.appendChild(btn);
     });
+
+    // rebuilt when the key changes, so the picked chord keeps its highlight
+    document.querySelectorAll('.chord-btn').forEach(btn => {
+        btn.classList.toggle('selected', btn.dataset.note === selectedChord && btn.dataset.type === selectedChordType);
+    });
+}
+
+// Chord names are spelled for the key and the preset numerals follow the mode, so both
+// are redrawn whenever the key or the mode changes, or a project loads.
+function refreshKeyNames() {
+    buildChordPalette();
+    buildProgressionTimeline();
+    updatePresetLabels();
 }
 
 /**
@@ -139,7 +152,7 @@ function createBarSlot(index) {
 
         const name = document.createElement('div');
         name.className = 'bar-chord-name';
-        name.textContent = chordInfo.chord;
+        name.textContent = spellNote(chordInfo.chord);
 
         const type = document.createElement('div');
         type.className = 'bar-chord-type';
@@ -326,6 +339,7 @@ function updateControlsFromState() {
     document.getElementById('bpmValue').textContent = bpm;
     document.getElementById('barCount').value = bars;
     updateSliderBackground(document.getElementById('bpmSlider'), bpm, 40, 200);
+    refreshKeyNames();
 }
 
 /**
@@ -333,6 +347,7 @@ function updateControlsFromState() {
  */
 function updateKey() {
     currentKey = document.getElementById('keySelect').value;
+    refreshKeyNames();
     markDirty();
 }
 
@@ -341,6 +356,7 @@ function updateKey() {
  */
 function updateMode() {
     currentMode = document.getElementById('modeSelect').value;
+    refreshKeyNames();
     markDirty();
 }
 

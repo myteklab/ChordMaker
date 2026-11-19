@@ -70,6 +70,23 @@ function getChordFrequencies(root, type, inversion = 0, octave = 3) {
     return frequencies;
 }
 
+// Notes are stored and played by their sharp names (NOTE_FREQUENCIES is keyed that way),
+// but what a student reads is spelled for the key: F major's IV is Bb, not A#. Flat keys
+// spell with flats, sharp keys with sharps, and C major and A minor use the usual mixed
+// spelling (C#, Eb, F#, Ab, Bb).
+const FLAT_SPELLING = { 'C#': 'D\u266D', 'D#': 'E\u266D', 'F#': 'G\u266D', 'G#': 'A\u266D', 'A#': 'B\u266D' };
+const NEUTRAL_SPELLING = { 'D#': 'E\u266D', 'G#': 'A\u266D', 'A#': 'B\u266D' };
+const FLAT_KEYS = { Major: ['F', 'A#', 'D#', 'G#', 'C#'], Minor: ['D', 'G', 'C', 'F', 'A#'] };
+
+function spellNote(note) {
+    if (!note || note.length < 2) return note;
+    if ((FLAT_KEYS[currentMode] || []).includes(currentKey)) return FLAT_SPELLING[note] || note;
+    if ((currentMode === 'Major' && currentKey === 'C') || (currentMode === 'Minor' && currentKey === 'A')) {
+        return NEUTRAL_SPELLING[note] || note;
+    }
+    return note;
+}
+
 /**
  * Get the display name for a chord
  * @param {string} root - Root note
@@ -97,7 +114,7 @@ function getChordDisplayName(root, type) {
         default: suffix = type;
     }
 
-    return root + suffix;
+    return spellNote(root) + suffix;
 }
 
 /**
