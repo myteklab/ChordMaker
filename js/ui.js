@@ -192,12 +192,14 @@ function selectBar(index) {
         slot.classList.toggle('selected', i === index);
     });
 
-    // If we have a chord selected, place it
+    // If we have a chord selected, place it. placeChordInBar plays it, so the
+    // preview below is only for a bar clicked with nothing picked, or the same
+    // chord sounded twice at once, doubling its volume.
     if (selectedChord) {
         placeChordInBar(index, selectedChord, selectedChordType, selectedInversion);
+        return;
     }
 
-    // Preview the chord if it exists
     const chordInfo = progression[index];
     if (chordInfo && chordInfo.chord) {
         resumeAudio();
@@ -421,4 +423,21 @@ function clearPlayingHighlight() {
     document.querySelectorAll('.bar-slot').forEach(slot => {
         slot.classList.remove('playing');
     });
+}
+
+// Presets, undo, Clear All and export all call this, and nothing defined it, so
+// Export Audio threw before rendering anything. index.html already carries the
+// slideInRight / slideOutRight keyframes it was written for.
+function showToast(message, type = 'success') {
+    const toast = document.createElement('div');
+    toast.textContent = message;
+    const bg = type === 'error' ? '#e74c3c' : type === 'info' ? '#3498db' : '#00b894';
+    toast.style.cssText = `position: fixed; bottom: 20px; right: 20px; background: ${bg};
+        color: white; padding: 15px 20px; border-radius: 8px; font-weight: 600; z-index: 10000;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3); animation: slideInRight 0.3s ease-out;`;
+    document.body.appendChild(toast);
+    setTimeout(() => {
+        toast.style.animation = 'slideOutRight 0.3s ease-out forwards';
+        setTimeout(() => toast.remove(), 300);
+    }, type === 'info' ? 1200 : 2000);
 }

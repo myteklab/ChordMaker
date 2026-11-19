@@ -41,6 +41,8 @@ function undo() {
     // Restore previous state
     const previousState = undoStack.pop();
     loadState(previousState.data);
+    // Without this, an undo right after a save left the platform thinking nothing changed
+    markDirty();
 
     // Update UI
     updateControlsFromState();
@@ -65,6 +67,7 @@ function redo() {
     // Restore redo state
     const redoState = redoStack.pop();
     loadState(redoState.data);
+    markDirty();
 
     // Update UI
     updateControlsFromState();
